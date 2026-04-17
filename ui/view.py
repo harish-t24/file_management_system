@@ -1,20 +1,20 @@
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 from logic.file_ops import load_json, save_json
-from utils.helpers import simple_input
 from logic.person_ops import update_person
+from utils.helpers import simple_input
 import os
 import shutil
 
 
 def view_person(root, content, pid, show_dashboard):
 
-    # ===== CLEAR SCREEN =====
+    # ===== CLEAR =====
     for w in content.winfo_children():
         w.destroy()
 
     frame = ctk.CTkFrame(content)
-    frame.pack(fill="both", expand=True)
+    frame.pack(fill="both", expand=True, padx=15, pady=15)
 
     # ===== PATH =====
     person_folder = os.path.join("data", pid)
@@ -26,160 +26,113 @@ def view_person(root, content, pid, show_dashboard):
         messagebox.showerror("Error", "Data not found")
         return
 
-    # ===== SCROLL =====
-    canvas = ctk.CTkCanvas(frame)
-    inner = ctk.CTkFrame(canvas)
+    # ===== HEADER =====
+    header = ctk.CTkFrame(frame, fg_color="transparent")
+    header.pack(fill="x", pady=10)
 
-    scrollbar = ctk.CTkScrollbar(frame, orientation="vertical", command=canvas.yview)
-    canvas.configure(yscrollcommand=scrollbar.set)
+    ctk.CTkLabel(header,
+                 text=f"👤 {data.get('Full Name','Person')}",
+                 font=("Segoe UI", 20, "bold")
+    ).pack(side="left")
 
-    scrollbar.pack(side="right", fill="y")
-    canvas.pack(side="left", fill="both", expand=True)
-
-    canvas.create_window((0, 0), window=inner, anchor="nw")
-
-    inner.bind("<Configure>", lambda e: canvas.configure(
-        scrollregion=canvas.bbox("all")
-    ))
-
-    def on_mousewheel(event):
-        canvas.yview_scroll(int(-event.delta / 60), "units")
-
-    inner.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", on_mousewheel))
-    inner.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
-
-    # ===== BACK BUTTON =====
-    ctk.CTkButton(inner,
+    ctk.CTkButton(header,
                   text="⬅ Back",
                   command=lambda: show_dashboard(root, content)
-    ).pack(pady=5)
+    ).pack(side="right")
 
-    # ===== FILE SECTION =====
-    files_folder = os.path.join(person_folder, "files")
-    os.makedirs(files_folder, exist_ok=True)
+    # ===== SCROLL AREA =====
+    scroll = ctk.CTkScrollableFrame(frame, corner_radius=10)
+    scroll.pack(fill="both", expand=True, pady=10)
 
-    ctk.CTkLabel(inner,
-                 text="📁 Files",
-                 font=("Segoe UI", 14, "bold")
-    ).pack(anchor="w", padx=10, pady=10)
+    # ===== FILE FIELDS =====
+    file_fields = [
+        "Age Proof", "ID Proof", "Address Proof", "Photo",
+        "School ID", "Form 16", "Bank Statement",
+        "Bank Cheque 1", "Bank Cheque 2",
+        "Proposal Form 1", "Proposal Form 2",
+        "Visiting Card", "PAN Card Copy"
+    ]
 
-    # Upload file
-    def upload_file():
-        src = filedialog.askopenfilename()
-        if src:
-            filename = os.path.basename(src)
-            dest = os.path.join(files_folder, filename)
-            shutil.copy(src, dest)
+    # ===== OPEN FILE =====
+    def open_file(filename):
+        try:
+            path = os.path.join("data", pid, "files", filename)
+            if os.path.exists(path):
+                os.startfile(path)
+            else:
+                messagebox.showerror("Error", "File not found")
+        except:
+            messagebox.showerror("Error", "Cannot open file")
 
-            messagebox.showinfo("Success", "File uploaded")
-            view_person(root, content, pid, show_dashboard)
-
-    ctk.CTkButton(inner,
-                  text="📤 Upload File",
-                  command=upload_file
-    ).pack(pady=5)
-
-    # File list
-    for f in os.listdir(files_folder):
-        row = ctk.CTkFrame(inner)
-        row.pack(fill="x", padx=10, pady=3)
-
-        # Open file
-        def open_file(fname=f):
-            path = os.path.join(files_folder, fname)
-            try:
-                os.startfile(path)  # Windows
-            except:
-                messagebox.showerror("Error", "Cannot open file")
-
-        ctk.CTkButton(row,
-                      text=f,
-                      fg_color="transparent",
-                      text_color="lightblue",
-                      command=open_file
-        ).pack(side="left", padx=10)
-
-        # Delete file
-        def delete_file(fname=f):
-            confirm = messagebox.askyesno("Delete", f"Delete {fname}?")
-            if confirm:
-                os.remove(os.path.join(files_folder, fname))
-                view_person(root, content, pid, show_dashboard)
-
-        ctk.CTkButton(row,
-                      text="🗑",
-                      width=40,
-                      fg_color="red",
-                      command=delete_file
-        ).pack(side="right", padx=5)
-
-    # ===== DETAILS SECTION =====
-    ctk.CTkLabel(inner,
-                 text="📋 Details",
-                 font=("Segoe UI", 14, "bold")
-    ).pack(anchor="w", padx=10, pady=15)
-
+    # ===== DISPLAY DATA =====
     for key, value in data.items():
-        row = ctk.CTkFrame(inner)
-        row.pack(fill="x", padx=10, pady=3)
 
+        card = ctk.CTkFrame(scroll, corner_radius=12)
+        card.pack(fill="x", padx=5, pady=5)
+
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=10, pady=8)
+
+        # Label
         ctk.CTkLabel(row,
                      text=key,
-                     width=200
-        ).pack(side="left", padx=5)
+                     width=200,
+                     anchor="w",
+                     font=("Segoe UI", 11, "bold")
+        ).pack(side="left")
 
-        val_label = ctk.CTkLabel(row, text=value)
-        val_label.pack(side="left", padx=5)
+        # ===== VALUE =====
+        if key in file_fields and value:
 
-        # Edit field
-        def make_edit(k, label):
+            val = ctk.CTkButton(
+                row,
+                text=value,
+                fg_color="transparent",
+                text_color="#4da6ff",
+                hover_color="#1f6aa5",
+                command=lambda v=value: open_file(v)
+            )
+            val.pack(side="left", padx=5)
 
-            def edit_field():
+        else:
+            val = ctk.CTkLabel(row, text=value)
+            val.pack(side="left", padx=5)
 
-                file_fields = [
-                    "Age Proof", "ID Proof", "Address Proof", "Photo",
-                    "School ID", "Form 16", "Bank Statement",
-                    "Bank Cheque 1", "Bank Cheque 2",
-                    "Proposal Form 1", "Proposal Form 2",
-                    "Visiting Card", "PAN Card Copy"
-                ]
+        # ===== EDIT =====
+        def make_edit(k, widget):
 
-                # ===== FILE FIELD =====
+            def edit():
+
+                # FILE FIELD
                 if k in file_fields:
-                    from tkinter import filedialog
-                    import shutil
-
-                    src = filedialog.askopenfilename()
-
-                    if src:
-                        filename = os.path.basename(src)
+                    f = filedialog.askopenfilename()
+                    if f:
+                        filename = os.path.basename(f)
                         dest = os.path.join("data", pid, "files", filename)
 
-                        shutil.copy(src, dest)
-
+                        shutil.copy(f, dest)
                         data[k] = filename
                         save_json(file_name, data)
 
-                        label.configure(text=filename)
+                        widget.configure(text=filename)
 
-                # ===== NORMAL FIELD =====
+                # TEXT FIELD
                 else:
                     new_val = simple_input(root, f"Edit {k}")
-
                     if new_val:
                         data[k] = new_val
                         save_json(file_name, data)
 
-                        label.configure(text=new_val)
+                        widget.configure(text=new_val)
 
                         if k == "Full Name":
                             update_person(pid, new_val)
                             show_dashboard(root, content)
 
-            return edit_field
+            return edit
 
         ctk.CTkButton(row,
                       text="✏",
                       width=40,
-                      command=make_edit(key, val_label)
-        ).pack(side="right", padx=5)
+                      command=make_edit(key, val)
+        ).pack(side="right")

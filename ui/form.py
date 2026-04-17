@@ -10,53 +10,62 @@ import shutil
 
 def open_form(root, content, show_dashboard):
 
-    # ===== CLEAR SCREEN =====
+    # ===== CLEAR =====
     for w in content.winfo_children():
         w.destroy()
 
-    frame = ctk.CTkFrame(content)
-    frame.pack(fill="both", expand=True)
+    main = ctk.CTkFrame(content, corner_radius=15)
+    main.pack(fill="both", expand=True, padx=20, pady=20)
+
+    # ===== HEADER =====
+    header = ctk.CTkFrame(main, fg_color="transparent")
+    header.pack(fill="x", pady=10)
+
+    ctk.CTkLabel(header,
+                 text="➕ Add Person",
+                 font=("Segoe UI", 24, "bold")
+    ).pack(side="left")
+
+    ctk.CTkButton(header,
+                  text="⬅ Back",
+                  command=lambda: show_dashboard(root, content)
+    ).pack(side="right")
 
     # ===== SCROLL =====
-    canvas = ctk.CTkCanvas(frame)
-    inner = ctk.CTkFrame(canvas)
-
-    scrollbar = ctk.CTkScrollbar(frame, orientation="vertical", command=canvas.yview)
-    canvas.configure(yscrollcommand=scrollbar.set)
-
-    scrollbar.pack(side="right", fill="y")
-    canvas.pack(side="left", fill="both", expand=True)
-
-    canvas.create_window((0, 0), window=inner, anchor="nw")
-
-    inner.bind("<Configure>", lambda e: canvas.configure(
-        scrollregion=canvas.bbox("all")
-    ))
-
-    # ===== BACK =====
-    ctk.CTkButton(inner, text="⬅ Back",
-                  command=lambda: show_dashboard(root, content)
-    ).pack(pady=5)
+    scroll = ctk.CTkScrollableFrame(main, corner_radius=10)
+    scroll.pack(fill="both", expand=True, pady=10)
 
     entries = {}
 
     # ===== FIELD =====
     def add(parent, label, field_type="text", options=None):
-        row = ctk.CTkFrame(parent)
-        row.pack(fill="x", pady=3, padx=5)
 
-        ctk.CTkLabel(row, text=label, width=220).pack(side="left", padx=5)
+        card = ctk.CTkFrame(parent, corner_radius=12)
+        card.pack(fill="x", padx=5, pady=5)
 
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=10, pady=8)
+
+        ctk.CTkLabel(row,
+                     text=label,
+                     width=220,
+                     anchor="w",
+                     font=("Segoe UI", 11, "bold")
+        ).pack(side="left")
+
+        # ===== TEXT =====
         if field_type == "text":
             e = ctk.CTkEntry(row)
             e.pack(side="right", fill="x", expand=True)
             entries[label] = e
 
+        # ===== DROPDOWN =====
         elif field_type == "dropdown":
             var = ctk.StringVar()
             ctk.CTkOptionMenu(row, variable=var, values=options).pack(side="right")
             entries[label] = var
 
+        # ===== FILE =====
         elif field_type == "file":
             var = ctk.StringVar()
 
@@ -75,7 +84,10 @@ def open_form(root, content, show_dashboard):
 
             def open_file():
                 if hasattr(var, "full_path"):
-                    os.startfile(var.full_path)
+                    try:
+                        os.startfile(var.full_path)
+                    except:
+                        messagebox.showerror("Error", "Cannot open file")
 
             ctk.CTkButton(row,
                           textvariable=var,
@@ -88,10 +100,13 @@ def open_form(root, content, show_dashboard):
 
     # ===== SECTION =====
     def section(title):
-        container = ctk.CTkFrame(inner)
-        container.pack(fill="x", pady=5)
+        container = ctk.CTkFrame(scroll, corner_radius=12)
+        container.pack(fill="x", pady=8)
 
-        header = ctk.CTkButton(container, text=f"▶ {title}", anchor="w")
+        header = ctk.CTkButton(container,
+                               text=f"▶ {title}",
+                               anchor="w",
+                               height=40)
         header.pack(fill="x")
 
         body = ctk.CTkFrame(container)
@@ -111,8 +126,8 @@ def open_form(root, content, show_dashboard):
 
     # ===== ALL SECTIONS =====
 
-    # 13.1 Personal
-    sec = section("Personal Details")
+    # Personal
+    sec = section("👤 Personal Details")
     add(sec, "Full Name")
     add(sec, "Father’s Name")
     add(sec, "Date of Birth")
@@ -124,8 +139,8 @@ def open_form(root, content, show_dashboard):
     add(sec, "Weight")
     add(sec, "Aadhaar Number")
 
-    # 13.2 Family
-    sec = section("Family Details")
+    # Family
+    sec = section("👨‍👩‍👧 Family Details")
     add(sec, "Number of Children")
     add(sec, "Children DOB")
     add(sec, "Father’s Age")
@@ -134,83 +149,82 @@ def open_form(root, content, show_dashboard):
     add(sec, "Brother’s Age")
     add(sec, "Sister’s Age")
 
-    # 13.3 Professional
-    sec = section("Professional Details")
+    # Professional
+    sec = section("💼 Professional Details")
     add(sec, "Employer / Business Name")
     add(sec, "Designation")
     add(sec, "Nature of Business")
     add(sec, "Annual Income")
 
-    # 13.4 Contact
-    sec = section("Contact Details")
+    # Contact
+    sec = section("📞 Contact Details")
     add(sec, "Office Contact Number")
     add(sec, "Mobile Number 1")
     add(sec, "Mobile Number 2")
     add(sec, "Email ID")
 
-    # 13.5 Identity
-    sec = section("Identity Details")
+    # Identity
+    sec = section("🆔 Identity Details")
     add(sec, "PAN Number")
     add(sec, "Aadhaar Number")
 
-    # 13.6 Additional
-    sec = section("Additional Details")
+    # Additional
+    sec = section("💍 Additional Details")
     add(sec, "Wedding Anniversary")
 
-    # 13.7 Nominee
-    sec = section("Nominee Details")
+    # Nominee
+    sec = section("🧾 Nominee Details")
     add(sec, "Nominee Relationship", "dropdown",
         ["Father", "Mother", "Spouse", "Children", "Appointee"])
     add(sec, "Nominee Name")
     add(sec, "Nominee DOB")
     add(sec, "Nominee Father’s Name")
 
-    # 13.8 Insurance
-    sec = section("Insurance Details")
+    # Insurance
+    sec = section("🛡 Insurance Details")
     for p in ["Self", "Father", "Mother", "Spouse", "Children"]:
         for f in ["Policy Number", "Sum Assured", "Year of Issue", "Company"]:
             add(sec, f"{p} {f}")
 
-    # 13.9 Health
-    sec = section("Health Details")
+    # Health
+    sec = section("🏥 Health Details")
     add(sec, "Health problems")
     add(sec, "Lifestyle habits")
     add(sec, "Pregnancy details")
     add(sec, "Other remarks")
 
-    # 13.10 Address
-    sec = section("Address Details")
+    # Address
+    sec = section("🏠 Address Details")
     add(sec, "Communication Address")
     add(sec, "Permanent Address")
 
-    # 13.11 Plan
-    sec = section("Plan Details")
+    # Plan
+    sec = section("📋 Plan Details")
     add(sec, "Product Name")
     add(sec, "Premium")
     add(sec, "Mode", "dropdown", ["Yearly", "Half-yearly", "Quarterly"])
     add(sec, "Sum Assured")
     add(sec, "Rider")
 
-    # 13.12 Documents
-    sec = section("Document Attachments")
-    docs = [
+    # Documents
+    sec = section("📎 Document Attachments")
+    for d in [
         "Age Proof", "ID Proof", "Address Proof", "Photo",
         "School ID", "Form 16", "Bank Statement",
         "Bank Cheque 1", "Bank Cheque 2",
         "Proposal Form 1", "Proposal Form 2",
         "Visiting Card"
-    ]
-    for d in docs:
+    ]:
         add(sec, d, "file")
 
-    # 13.13 References
-    sec = section("References")
+    # References
+    sec = section("👥 References")
     add(sec, "Friend’s Name")
     add(sec, "Mobile Number")
     add(sec, "Age")
 
-    # 13.14 Financial
-    sec = section("PAN & Financial Details")
+    # Financial
+    sec = section("🪪 PAN & Financial Details")
     add(sec, "PAN Number")
     add(sec, "PAN Card Copy", "file")
     add(sec, "Risk Cover")
@@ -226,8 +240,8 @@ def open_form(root, content, show_dashboard):
     # ===== SAVE =====
     def save():
         data = {}
-
         pid = generate_id()
+
         person_folder = os.path.join("data", pid)
         files_folder = os.path.join(person_folder, "files")
 
@@ -255,4 +269,7 @@ def open_form(root, content, show_dashboard):
         messagebox.showinfo("Saved", "Person Added Successfully")
         show_dashboard(root, content)
 
-    ctk.CTkButton(inner, text="💾 Save", command=save).pack(pady=15)
+    ctk.CTkButton(main,
+                  text="💾 Save",
+                  height=45,
+                  command=save).pack(pady=10)

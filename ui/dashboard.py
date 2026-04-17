@@ -7,7 +7,7 @@ import os
 import shutil
 
 
-# ===== DELETE FUNCTION =====
+# ===== DELETE =====
 def delete_person(pid, refresh):
     confirm = messagebox.askyesno("Confirm", "Delete this person?")
     if not confirm:
@@ -25,81 +25,123 @@ def delete_person(pid, refresh):
 # ===== DASHBOARD =====
 def show_dashboard(root, content):
 
+    # CLEAR SCREEN
     for w in content.winfo_children():
         w.destroy()
 
-    main = ctk.CTkFrame(content)
-    main.pack(fill="both", expand=True, padx=15, pady=15)
+    main = ctk.CTkFrame(content, corner_radius=15)
+    main.pack(fill="both", expand=True, padx=20, pady=20)
 
-    # ===== TITLE =====
-    ctk.CTkLabel(main,
+    # ===== HEADER =====
+    header = ctk.CTkFrame(main, fg_color="transparent")
+    header.pack(fill="x", pady=10)
+
+    ctk.CTkLabel(header,
                  text="📊 Dashboard",
-                 font=("Segoe UI", 22, "bold")
-    ).pack(pady=10)
+                 font=("Segoe UI", 24, "bold")
+    ).pack(side="left")
 
-    # ===== ADD BUTTON =====
-    ctk.CTkButton(main,
+    ctk.CTkButton(header,
                   text="➕ Add Person",
+                  corner_radius=10,
                   command=lambda:
                   open_form(root, content, show_dashboard)
-    ).pack(pady=10)
+    ).pack(side="right")
 
-    # ===== CARD CONTAINER =====
-    card_container = ctk.CTkFrame(main)
+    # ===== SEARCH =====
+    search_frame = ctk.CTkFrame(main, corner_radius=12)
+    search_frame.pack(fill="x", pady=15)
+
+    search_entry = ctk.CTkEntry(
+        search_frame,
+        placeholder_text="🔍 Search by name or ID...",
+        height=42,
+        corner_radius=12,
+        fg_color="#2b2b3c",
+        border_width=1
+    )
+    search_entry.pack(fill="x", padx=10, pady=10)
+
+    # ===== CARD AREA =====
+    card_container = ctk.CTkScrollableFrame(main, corner_radius=10)
     card_container.pack(fill="both", expand=True)
 
-    if not persons:
-        ctk.CTkLabel(card_container,
-                     text="No persons found",
-                     font=("Segoe UI", 14)
-        ).pack(pady=20)
-        return
+    # ===== DISPLAY CARDS =====
+    def display_cards(data):
 
-    # ===== CARD GRID =====
-    row_frame = None
+        for w in card_container.winfo_children():
+            w.destroy()
 
-    for i, (pid, name) in enumerate(persons):
+        if not data:
+            ctk.CTkLabel(card_container,
+                         text="No persons found",
+                         font=("Segoe UI", 14)
+            ).pack(pady=20)
+            return
 
-        # New row every 2 cards
-        if i % 2 == 0:
-            row_frame = ctk.CTkFrame(card_container)
-            row_frame.pack(fill="x", pady=5)
+        row_frame = None
 
-        # ===== CARD =====
-        card = ctk.CTkFrame(row_frame, width=300, height=150)
-        card.pack(side="left", padx=10, pady=10, expand=True)
+        for i, (pid, name) in enumerate(data):
 
-        # Name
-        ctk.CTkLabel(card,
-                     text=f"👤 {name}",
-                     font=("Segoe UI", 16, "bold")
-        ).pack(anchor="w", padx=10, pady=5)
+            if i % 2 == 0:
+                row_frame = ctk.CTkFrame(card_container, fg_color="transparent")
+                row_frame.pack(fill="x")
 
-        # ID
-        ctk.CTkLabel(card,
-                     text=f"ID: {pid}",
-                     font=("Segoe UI", 12)
-        ).pack(anchor="w", padx=10)
+            card = ctk.CTkFrame(row_frame,
+                                corner_radius=15,
+                                height=150)
+            card.pack(side="left", expand=True, fill="x", padx=10, pady=10)
 
-        # ===== BUTTON ROW =====
-        btn_frame = ctk.CTkFrame(card)
-        btn_frame.pack(fill="x", pady=10)
+            ctk.CTkLabel(card,
+                         text=f"👤 {name}",
+                         font=("Segoe UI", 16, "bold")
+            ).pack(anchor="w", padx=15, pady=5)
 
-        # VIEW
-        ctk.CTkButton(btn_frame,
-                      text="View",
-                      width=70,
-                      command=lambda pid=pid:
-                      view_person(root, content, pid, show_dashboard)
-        ).pack(side="left", padx=10)
+            ctk.CTkLabel(card,
+                         text=f"ID: {pid}",
+                         text_color="gray"
+            ).pack(anchor="w", padx=15)
 
-        # DELETE
-        ctk.CTkButton(btn_frame,
-                      text="Delete",
-                      width=70,
-                      fg_color="red",
-                      hover_color="#aa0000",
-                      command=lambda pid=pid:
-                      delete_person(pid,
-                                    lambda: show_dashboard(root, content))
-        ).pack(side="right", padx=10)
+            btn_frame = ctk.CTkFrame(card, fg_color="transparent")
+            btn_frame.pack(fill="x", pady=10)
+
+            ctk.CTkButton(btn_frame,
+                          text="View",
+                          width=80,
+                          command=lambda pid=pid:
+                          view_person(root, content, pid, show_dashboard)
+            ).pack(side="left", padx=10)
+
+            ctk.CTkButton(btn_frame,
+                          text="Delete",
+                          width=80,
+                          fg_color="#e53935",
+                          hover_color="#c62828",
+                          command=lambda pid=pid:
+                          delete_person(pid,
+                                        lambda: show_dashboard(root, content))
+            ).pack(side="right", padx=10)
+
+    # ===== SEARCH LOGIC =====
+    def on_search(event=None):
+        query = search_entry.get().lower()
+
+        filtered = [
+            (pid, name)
+            for pid, name in persons
+            if query in pid.lower() or query in name.lower()
+        ]
+
+        display_cards(filtered)
+
+    search_entry.bind("<KeyRelease>", on_search)
+
+    # ===== SAFE FOCUS HANDLING (ONLY DASHBOARD) =====
+    def remove_focus(event):
+        if event.widget != search_entry and not isinstance(event.widget, ctk.CTkEntry):
+            main.focus()
+
+    main.bind("<Button-1>", remove_focus)
+
+    # ===== INITIAL LOAD =====
+    display_cards(persons)
