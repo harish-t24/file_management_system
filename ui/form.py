@@ -1,111 +1,126 @@
-import tkinter as tk
+import customtkinter as ctk
 from tkinter import messagebox, filedialog
 from datetime import datetime
 from utils.helpers import generate_id
 from logic.file_ops import save_json
 from logic.person_ops import add_person
+import os
+import shutil
 
 
-def open_form(root, show_dashboard):
-    win = tk.Toplevel(root)
-    win.title("Add Person")
-    win.geometry("600x700")
+def open_form(root, content, show_dashboard):
 
-    # ===== SCROLL SETUP =====
-    canvas = tk.Canvas(win)
-    frame = tk.Frame(canvas)
+    # ===== CLEAR SCREEN =====
+    for w in content.winfo_children():
+        w.destroy()
 
-    scrollbar = tk.Scrollbar(win, orient="vertical", command=canvas.yview)
+    frame = ctk.CTkFrame(content)
+    frame.pack(fill="both", expand=True)
+
+    # ===== SCROLL =====
+    canvas = ctk.CTkCanvas(frame)
+    inner = ctk.CTkFrame(canvas)
+
+    scrollbar = ctk.CTkScrollbar(frame, orientation="vertical", command=canvas.yview)
     canvas.configure(yscrollcommand=scrollbar.set)
 
     scrollbar.pack(side="right", fill="y")
     canvas.pack(side="left", fill="both", expand=True)
 
-    canvas.create_window((0, 0), window=frame, anchor="nw")
+    canvas.create_window((0, 0), window=inner, anchor="nw")
 
-    frame.bind("<Configure>", lambda e: canvas.configure(
+    inner.bind("<Configure>", lambda e: canvas.configure(
         scrollregion=canvas.bbox("all")
     ))
 
-    def enable_super_smooth_scroll(canvas, frame):
-
-        scroll_speed = 1  # adjust speed here (1 = slow, 2–3 = fast)
-
-        def on_mousewheel(event):
-            delta = int(-event.delta / 120)
-            canvas.yview_scroll(delta * scroll_speed, "units")
-
-        def on_shift_mousewheel(event):
-            delta = int(-event.delta / 120)
-            canvas.xview_scroll(delta * scroll_speed, "units")
-
-        # Activate only when mouse inside
-        frame.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", on_mousewheel))
-        frame.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
-
-        # Horizontal scroll (Shift + wheel)
-        frame.bind("<Shift-MouseWheel>", on_shift_mousewheel)
-
-        # Linux support
-        frame.bind("<Button-4>", lambda e: canvas.yview_scroll(-1 * scroll_speed, "units"))
-        frame.bind("<Button-5>", lambda e: canvas.yview_scroll(1 * scroll_speed, "units"))
-
-    # ===== SMOOTH SCROLL =====
     def on_mousewheel(event):
         canvas.yview_scroll(int(-event.delta / 60), "units")
 
-    frame.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", on_mousewheel))
-    frame.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
-
-    frame.bind("<Button-4>", lambda e: canvas.yview_scroll(-1, "units"))
-    frame.bind("<Button-5>", lambda e: canvas.yview_scroll(1, "units"))
+    inner.bind("<Enter>", lambda e: canvas.bind_all("<MouseWheel>", on_mousewheel))
+    inner.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
 
     entries = {}
-    entry_order = []
+    entry_order = {}
+
+    # ===== BACK BUTTON =====
+    ctk.CTkButton(inner,
+                  text="⬅ Back",
+                  command=lambda: show_dashboard(root, content)
+    ).pack(pady=5)
 
     # ===== SECTION =====
     def section(title):
-        tk.Label(frame, text=title,
-                 bg="#2f3640", fg="white",
-                 font=("Segoe UI", 11, "bold")
-        ).pack(fill="x", pady=5)
+        ctk.CTkLabel(inner,
+                     text=title,
+                     font=("Segoe UI", 14, "bold")
+        ).pack(fill="x", pady=8)
 
     # ===== ADD FIELD =====
     def add(label, field_type="text", options=None):
-        row = tk.Frame(frame)
-        row.pack(fill="x", pady=2)
+        row = ctk.CTkFrame(inner)
+        row.pack(fill="x", pady=4, padx=5)
 
-        tk.Label(row, text=label, width=25, anchor="w").pack(side="left")
+        ctk.CTkLabel(row, text=label, width=200).pack(side="left", padx=5)
 
         if field_type == "text":
-            e = tk.Entry(row)
-            e.pack(side="right", fill="x", expand=True)
+            e = ctk.CTkEntry(row)
+            e.pack(side="right", fill="x", expand=True, padx=5)
 
-            entry_order.append(e)
+            entry_order[label] = e
 
             def focus_next(event):
-                idx = entry_order.index(e)
-                if idx < len(entry_order) - 1:
-                    entry_order[idx + 1].focus()
+                keys = list(entry_order.keys())
+                idx = keys.index(label)
+                if idx < len(keys) - 1:
+                    entry_order[keys[idx + 1]].focus()
 
             e.bind("<Return>", focus_next)
-
             entries[label] = e
 
         elif field_type == "dropdown":
-            var = tk.StringVar()
-            tk.OptionMenu(row, var, *options).pack(side="right")
+            var = ctk.StringVar()
+            e = ctk.CTkOptionMenu(row, variable=var, values=options)
+            e.pack(side="right", padx=5)
             entries[label] = var
 
         elif field_type == "file":
-            var = tk.StringVar()
+            var = ctk.StringVar()
+
+            # Upload Button
+            btn = ctk.CTkButton(row, text="Upload")
 
             def upload():
                 f = filedialog.askopenfilename()
                 if f:
-                    var.set(f)
+                    filename = os.path.basename(f)
+                    var.set(filename)
+                    var.full_path = f
 
-            tk.Button(row, text="Upload", command=upload).pack(side="right")
+                    btn.configure(text="Uploaded ✓",
+                                  fg_color="green",
+                                  hover_color="#0f8f0f")
+
+            btn.configure(command=upload)
+            btn.pack(side="right", padx=5)
+
+            # Clickable file name (OPEN FILE)
+            def open_file():
+                if hasattr(var, "full_path"):
+                    try:
+                        os.startfile(var.full_path)  # Windows
+                    except:
+                        messagebox.showerror("Error", "Cannot open file")
+
+            file_btn = ctk.CTkButton(
+                row,
+                textvariable=var,
+                fg_color="transparent",
+                text_color="#4da6ff",
+                hover_color="#1f6aa5",
+                command=open_file
+            )
+            file_btn.pack(side="right", padx=5)
+
             entries[label] = var
 
     # ===== FORM CONTENT =====
@@ -212,27 +227,39 @@ def open_form(root, show_dashboard):
     def save():
         data = {}
 
-        for k, v in entries.items():
-            data[k] = v.get()
-
         pid = generate_id()
+        person_folder = os.path.join("data", pid)
+        files_folder = os.path.join(person_folder, "files")
+
+        os.makedirs(files_folder, exist_ok=True)
+
+        for k, v in entries.items():
+            if hasattr(v, "full_path"):
+                src = v.full_path
+                filename = os.path.basename(src)
+                dest = os.path.join(files_folder, filename)
+
+                shutil.copy(src, dest)
+                data[k] = filename
+            else:
+                data[k] = v.get()
+
         data["ID"] = pid
 
-        # Auto age
         if "Date of Birth" in data:
             try:
                 data["Age"] = datetime.now().year - int(data["Date of Birth"][:4])
             except:
                 pass
 
-        save_json(f"{pid}.json", data)
+        save_json(os.path.join(person_folder, "data.json"), data)
+
         add_person(pid, data.get("Full Name", "Unknown"))
 
         messagebox.showinfo("Saved", "Person Added Successfully")
 
-        win.destroy()
-        show_dashboard()
+        show_dashboard(root, content)
 
-    tk.Button(frame, text="💾 Save",
-              bg="green", fg="white",
-              command=save).pack(pady=15)
+    ctk.CTkButton(inner,
+                  text="💾 Save",
+                  command=save).pack(pady=15)
